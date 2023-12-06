@@ -9,7 +9,7 @@ import {BasePluginWithEventMetadata, PluginMetadata} from "./Base.sol";
 
 error ALREADY_CLAIMED();
 error ALREADY_CANCELLED();
-error INCORRECT_PASSWORD(bytes32 incorrect );
+error INCORRECT_PASSWORD(bytes32 incorrect, bytes32 correct );
 error INSUFFICIENT_BALANCE();
 
 contract Verifier {
@@ -57,10 +57,9 @@ contract Verifier {
     function claimDeposit(bytes32 _password, address reciever, address _tokenAddress) public {
 
         if(
-            
-            deposit[_password].password != keccak256(abi.encodePacked(_password))
+            keccak256(abi.encodePacked(deposit[_password].password)) != keccak256(abi.encodePacked((_password)))
         ){
-            revert INCORRECT_PASSWORD(keccak256(abi.encodePacked(_password)));
+            revert INCORRECT_PASSWORD(keccak256(abi.encodePacked(deposit[_password].password)),_password);
         }
         if(
             deposit[_password].claimed == true
@@ -73,7 +72,7 @@ contract Verifier {
             revert ALREADY_CANCELLED();
         }
 
-        Token(_tokenAddress).transferFrom(address(this), reciever, deposit[_password].tokens);
+        Token(_tokenAddress).transfer(reciever, deposit[_password].tokens);
         deposit[_password].claimed = true;
         is_Refered[reciever] = true;
         refered_count[deposit[_password].caller] += 1;
@@ -82,9 +81,9 @@ contract Verifier {
     function cancelDeposit (address caller, bytes32 _password, address token_Address) public {
 
         if(
-            deposit[_password].password != keccak256(abi.encodePacked(_password))
+            keccak256(abi.encodePacked(deposit[_password].password)) != keccak256(abi.encodePacked((_password)))
         ){
-            revert INCORRECT_PASSWORD(keccak256(abi.encodePacked(_password)));
+            revert INCORRECT_PASSWORD(keccak256(abi.encodePacked(_password)),deposit[_password].password);
         }
         if(
             deposit[_password].claimed == true

@@ -38,6 +38,8 @@ describe("Verifier", async () => {
     ]
 
     let hashedPasswords: BytesLike = '0x6cc81b563b46cb63ce79c6d8f78576848bdfcd7cb0d47761dcce8549363c742c';
+    hashedPasswords = (toHex(passwords[0], { size: 32 }))
+    console.log('HASHED PASS',hashedPasswords);
 
     const setup = deployments.createFixture(async ({ deployments }) => {
         await deployments.fixture();
@@ -107,19 +109,54 @@ describe("Verifier", async () => {
         ).to.be.revertedWith("ERC20: insufficient allowance")
     });
 
-    it("Creates order, and checks variables", async () => {
+    it("Creates order", async () => {
         const { pluginVerifier } = await setup();
         const { pluginERC20 } = await setupERC20();
 
         // Minting tokens
         await pluginERC20.connect(deployer).mint(user1.address, 100);
         expect(
-            pluginERC20.connect(user1).balanceOf(
+            await pluginERC20.connect(user1).balanceOf(
                 user1.address,
             ),
-            '100'
-        )
+        ).to.be.equal(100)
+ 
         await pluginERC20.connect(user1).approve(VerifierAddress,100 )
+
+        await (
+            pluginVerifier.connect(user1).createDeposit(
+                hashedPasswords,
+                '10',
+                user1.address,
+                ERC20address
+            )
+        )
+
+        expect(
+            await pluginVerifier.connect(user1).getTokenAmount(
+                hashedPasswords,
+            ),
+        ).to.be.equal(10);
+
+        expect(
+            await pluginVerifier.connect(user1).isVerified(
+                user1.address,
+            ),
+        ).to.be.equal(false);
+
+        expect(
+            await pluginVerifier.connect(deployer).getTokenBalance(VerifierAddress, ERC20address),
+        ).to.be.equal(10)
+
+    });
+
+    it("Claims the token", async () => {
+        const { pluginVerifier } = await setup();
+        const { pluginERC20 } = await setupERC20();
+        await pluginERC20.connect(deployer).mint(user1.address, 100);
+        await pluginERC20.connect(deployer).mint(VerifierAddress, 100);
+        await pluginERC20.connect(user1).approve(VerifierAddress,10 );
+        await pluginERC20.connect(user1).approve(user1,10 );
 
         await (
             pluginVerifier.connect(user1).createDeposit(
@@ -128,9 +165,33 @@ describe("Verifier", async () => {
                 user1.address,
                 ERC20address
             )
+        );
+
+        await(
+            pluginVerifier.connect(deployer).claimDeposit(
+                (toHex(passwords[0], { size: 32 })),
+                user2.address,
+                ERC20address
+            )
         )
 
-    })
+        expect(
+            await pluginVerifier.connect(deployer).getTokenBalance(user2.address, ERC20address),
+        ).to.be.equal(10)
 
+
+        expect(
+            await pluginVerifier.connect(user2).isVerified(
+                user2.address,
+            ),
+        ).to.be.equal(true);
+
+        expect(
+            await pluginVerifier.connect(user2).isClaimed(
+                (toHex(passwords[0], { size: 32 })),
+            ),
+        ).to.be.equal(true);
+
+    })
 
 })
