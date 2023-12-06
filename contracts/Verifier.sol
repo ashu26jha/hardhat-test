@@ -16,6 +16,7 @@ contract Verifier {
 
     struct Deposit {
         address caller;
+        address tokenAddress;
         uint8 tokens;
         bool claimed;
         bool canceled;
@@ -30,24 +31,16 @@ contract Verifier {
     mapping (address => uint8) transactions; // MOVE TO INCENTIVE
     mapping (address => bool) is_Refered;
 
-    address immutable private i_token;
-
     event TokenCreated(address indexed tokenAddress); 
-    event DepositCreated(address indexed creator, bytes32 indexed password, uint8 indexed tokenAmount);
+    event DepositCreated(address indexed creator, bytes32 password, uint8 indexed tokenAmount, address tokenAddressadded);
     event DepositClaimed(address indexed creator, bytes32 indexed password, address indexed claimer);
 
-    constructor () {
-        Token newToken = new Token ("Tokens","TKS");
-        i_token = address(newToken);
-        emit TokenCreated(i_token);
-    }
-
-    function createDeposit (bytes32 password, uint8 tokens, address caller) public {
+    function createDeposit (bytes32 password, uint8 tokens, address caller, address _tokenAddress) public {
         
-        if(Token(i_token).balanceOf(caller) < tokens){
+        if(Token(_tokenAddress).balanceOf(caller) < tokens){
             revert INSUFFICIENT_BALANCE();
         }
-        Token(i_token).transferFrom(caller, address(this), tokens);
+        Token(_tokenAddress).transferFrom(caller, address(this), tokens);
 
         Deposit memory new_deposit;
 
@@ -55,12 +48,13 @@ contract Verifier {
         new_deposit.canceled = false;
         new_deposit.tokens = tokens;
         new_deposit.password = password;
+        new_deposit.tokenAddress = _tokenAddress;
 
         deposit[password] = new_deposit;
-        emit DepositCreated(caller, password, tokens);
+        emit DepositCreated(caller, password, tokens, _tokenAddress);
     }
 
-    function claimDeposit(bytes32 _password, address reciever) public {
+    function claimDeposit(bytes32 _password, address reciever, address _tokenAddress) public {
 
         if(
             
@@ -79,13 +73,13 @@ contract Verifier {
             revert ALREADY_CANCELLED();
         }
 
-        Token(i_token).transferFrom(address(this), reciever, deposit[_password].tokens);
+        Token(_tokenAddress).transferFrom(address(this), reciever, deposit[_password].tokens);
         deposit[_password].claimed = true;
         is_Refered[reciever] = true;
         refered_count[deposit[_password].caller] += 1;
     }
 
-    function cancelDeposit (address caller, bytes32 _password) public {
+    function cancelDeposit (address caller, bytes32 _password, address token_Address) public {
 
         if(
             deposit[_password].password != keccak256(abi.encodePacked(_password))
@@ -103,12 +97,12 @@ contract Verifier {
             revert ALREADY_CANCELLED();
         }
 
-        Token(i_token).transferFrom(address(this), caller, deposit[_password].tokens);
+        Token(token_Address).transferFrom(address(this), caller, deposit[_password].tokens);
         deposit[_password].canceled = true; 
     }
 
-    function mintToken (uint256 amount, address caller) public {
-        Token(i_token).mint(caller,amount);
+    function mintToken (uint256 amount, address caller, address token_address) public {
+        Token(token_address).mint(caller,amount);
     }
 
     // Getter Functions
@@ -126,11 +120,8 @@ contract Verifier {
     function isVerified (address sender) public view returns (bool){
         return is_Refered[sender];
     }
-    function getTokenBalance(address sender) public view returns (uint256){
-        return Token(i_token).balanceOf(sender);
-    }
-    function tokenAddress() public view returns (address){
-        return address(Token(i_token));
+    function getTokenBalance(address sender, address token_Address) public view returns (uint256){
+        return Token(token_Address).balanceOf(sender);
     }
     function contractAddress() public view returns (address){
         return address(this);

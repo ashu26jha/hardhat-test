@@ -1,7 +1,7 @@
 import hre, { deployments, ethers } from "hardhat";
 import { expect } from "chai";
 import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
-import {getInstance, getIncentivePlugin, getVerifierPlugin, getERC20Plugin } from "./utils/contracts";
+import { getInstance, getIncentivePlugin, getVerifierPlugin, getERC20Plugin } from "./utils/contracts";
 import { loadPluginMetadata } from "../src/utils/metadata";
 import { buildSingleTx } from "../src/utils/builder";
 import { ISafeProtocolManager__factory, MockContract } from "../typechain-types";
@@ -15,10 +15,20 @@ import { BytesLike, HexString } from "ethers/lib.commonjs/utils/data";
 
 describe("Verifier", async () => {
 
-    let user1: SignerWithAddress, user2: SignerWithAddress;
+    let deployer: SignerWithAddress,
+        recoverer: SignerWithAddress,
+        user1: SignerWithAddress,
+        user2: SignerWithAddress,
+        user3: SignerWithAddress;
+
+    const validityDuration = 60 * 60 * 24 * 100; // 100 days
 
     before(async () => {
-        [user1, user2] = await hre.ethers.getSigners();
+        [deployer, recoverer, user1, user2, user3] = await hre.ethers.getSigners();
+    });
+
+    before(async () => {
+        [deployer, user1, user2] = await hre.ethers.getSigners();
     });
 
     let passwords = [
@@ -27,13 +37,11 @@ describe("Verifier", async () => {
         "mahim"
     ]
 
-    let hashedPasswords: BytesLike = '0x6cc81b563b46cb63ce79c6d8f78576848bdfcd7cb0d47761dcce8549363c742c' ;
-    // hashedPasswords = passwords.map((password) =>
-        // keccak256(toHex(password, { size: 32 }))
-    // );
+    let hashedPasswords: BytesLike = '0x6cc81b563b46cb63ce79c6d8f78576848bdfcd7cb0d47761dcce8549363c742c';
+
     const setup = deployments.createFixture(async ({ deployments }) => {
         await deployments.fixture();
-        
+
         const managerVerifier = await ethers.getContractAt("MockContract", await getProtocolManagerAddress(hre));
 
         const accountVerifier = await (await ethers.getContractFactory("ExecutableMockContract")).deploy();
@@ -48,9 +56,8 @@ describe("Verifier", async () => {
 
     const setupERC20 = deployments.createFixture(async ({ deployments }) => {
         await deployments.fixture();
-        
-        const managerERC20 = await ethers.getContractAt("MockContract", await getProtocolManagerAddress(hre));
 
+        const managerERC20 = await ethers.getContractAt("MockContract", await getProtocolManagerAddress(hre));
         const accountERC20 = await (await ethers.getContractFactory("ExecutableMockContract")).deploy();
         const pluginERC20 = await getERC20Plugin(hre);
 
@@ -60,59 +67,70 @@ describe("Verifier", async () => {
             managerERC20,
         };
     });
-    
+
+    let ERC20address: any;
+    let VerifierAddress: any;
+
     it("Cannot create without minting", async () => {
+
+        const { pluginVerifier } = await setup();
+        const {pluginERC20} = await setupERC20 ();
+        ERC20address = await pluginERC20.connect(deployer).getAddress();
+        VerifierAddress = await pluginVerifier.connect(deployer).getAddress();
         
-        const {pluginVerifier} = await setup();
-        console.log(typeof(hashedPasswords[0].toString()) )
+        console.log("ERC20 owner",await pluginERC20.connect(deployer).owner())
+        console.log(typeof (hashedPasswords[0].toString()))
         await expect(
             pluginVerifier
                 .connect(user1)
                 .createDeposit(
                     hashedPasswords,
                     100,
-                    user1.address
+                    user1.address,
+                    ERC20address
                 ),
         ).to.be.revertedWithCustomError(pluginVerifier, "INSUFFICIENT_BALANCE");
     });
 
     it("Cannot create order without approving", async () => {
-        const {pluginVerifier} = await setup();
+        const { pluginVerifier } = await setup();
+        const {pluginERC20} = await setupERC20 ();
         // Minting tokens
-        await pluginVerifier.connect(user1).mintToken(100,user1.address);
+        await pluginERC20.connect(deployer).mint(user1.address, 100);
         await expect(
             pluginVerifier.connect(user1).createDeposit(
                 hashedPasswords,
                 10,
-                user1.address
+                user1.address,
+                ERC20address
             ),
         ).to.be.revertedWith("ERC20: insufficient allowance")
     });
 
-    it("Creates order, and checks variables", async ()=> {
-        const {pluginVerifier} = await setup();
-        const {pluginERC20} = await setupERC20();
+    it("Creates order, and checks variables", async () => {
+        const { pluginVerifier } = await setup();
+        const { pluginERC20 } = await setupERC20();
 
         // Minting tokens
-        await pluginVerifier.connect(user1).mintToken(100,user1.address);
+        await pluginERC20.connect(deployer).mint(user1.address, 100);
         expect(
-            pluginVerifier.connect(user1).getTokenBalance(
+            pluginERC20.connect(user1).balanceOf(
                 user1.address,
             ),
             '100'
         )
-        // const myContract = await hre.ethers.getContractAt("Token",await pluginVerifier.connect(user1).tokenAddress());
-        // console.log(myContract)
-        await pluginERC20.connect(user1).approve(await pluginVerifier.connect(user1).getAddress(),100);
+        await pluginERC20.connect(user1).approve(VerifierAddress,100 )
+
         await (
             pluginVerifier.connect(user1).createDeposit(
                 hashedPasswords,
                 10,
-                user1.address
+                user1.address,
+                ERC20address
             )
         )
 
     })
-    
-    
+
+
 })
