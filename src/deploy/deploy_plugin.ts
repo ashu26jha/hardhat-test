@@ -5,7 +5,6 @@ import { ZeroAddress } from "ethers";
 const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     const { deployments, getNamedAccounts } = hre;
     const { deployer, recoverer } = await getNamedAccounts();
-    console.log("DEPLOYER FROM NAMED", deployer)
     const { deploy } = deployments;
 
     const relayMethod = "0x6a761202"

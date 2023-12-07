@@ -21,8 +21,6 @@ describe("Verifier", async () => {
         user2: SignerWithAddress,
         user3: SignerWithAddress;
 
-    const validityDuration = 60 * 60 * 24 * 100; // 100 days
-
     before(async () => {
         [deployer, recoverer, user1, user2, user3] = await hre.ethers.getSigners();
     });
@@ -30,6 +28,7 @@ describe("Verifier", async () => {
     before(async () => {
         [deployer, user1, user2] = await hre.ethers.getSigners();
     });
+
 
     let passwords = [
         "ashutosh",
@@ -39,7 +38,6 @@ describe("Verifier", async () => {
 
     let hashedPasswords: BytesLike = '0x6cc81b563b46cb63ce79c6d8f78576848bdfcd7cb0d47761dcce8549363c742c';
     hashedPasswords = (toHex(passwords[0], { size: 32 }))
-    console.log('HASHED PASS',hashedPasswords);
 
     const setup = deployments.createFixture(async ({ deployments }) => {
         await deployments.fixture();
@@ -94,8 +92,6 @@ describe("Verifier", async () => {
         ERC20address = await pluginERC20.connect(deployer).getAddress();
         VerifierAddress = await pluginVerifier.connect(deployer).getAddress();
         
-        console.log("ERC20 owner",await pluginERC20.connect(deployer).owner())
-        console.log(typeof (hashedPasswords[0].toString()))
         await expect(
             pluginVerifier
                 .connect(user1)
@@ -176,7 +172,7 @@ describe("Verifier", async () => {
         );
 
         await(
-            pluginVerifier.connect(deployer).claimDeposit(
+            pluginVerifier.connect(user1).claimDeposit(
                 (toHex(passwords[0], { size: 32 })),
                 user2.address,
                 ERC20address
@@ -199,12 +195,9 @@ describe("Verifier", async () => {
         
         // Import necessary 
 
-        const { pluginVerifier, accountVerifier, managerVerifier } = await setup();
-        const { pluginERC20, accountERC20, managerERC20 } = await setupERC20();
+        const { pluginVerifier } = await setup();
+        const { pluginERC20 } = await setupERC20();
         const { pluginIncentive, accountIncentive, managerIncentive } = await setupIncentive();
-
-        const safeAddress = await accountIncentive.getAddress();
-
 
         await pluginERC20.connect(deployer).mint(user1.address, 100);
         await pluginERC20.connect(user1).approve(VerifierAddress,10 );
@@ -219,20 +212,15 @@ describe("Verifier", async () => {
         );
 
         await(
-            pluginVerifier.connect(deployer).claimDeposit(
+            pluginVerifier.connect(user2).claimDeposit(
                 (toHex(passwords[0], { size: 32 })),
                 user2.address,
                 ERC20address
             )
         );
 
-        // Now the deposit has been claimed 
-        // Adding verifier address to 
-
         const addContractData = pluginIncentive.interface.encodeFunctionData("setVerifier",[VerifierAddress]);
         await accountIncentive.executeCallViaMock(await pluginIncentive.getAddress(), 0, addContractData, MaxUint256);
-
-        // Checking contract address 
 
         expect (
             await(
@@ -243,16 +231,19 @@ describe("Verifier", async () => {
             )
         .to.be.equal(VerifierAddress);
 
-        const safeTx = buildSingleTx(user3.address, 0n, "0x", 0n, ZeroHash);
-        pluginIncentive.connect(user2).executeFromPlugin(managerIncentive.target, safeAddress, safeTx);
+        const safeTx = buildSingleTx(user2.address, 0n, "0x", 0n, ZeroHash);
+        await pluginIncentive.connect(user2).executeFromPlugin(managerIncentive.target, user2.address, safeTx);
 
+        console.log('Incentive address',
+            await pluginIncentive.connect(user1).contractAddress()
+        );
 
         console.log(await pluginVerifier.connect(user1).returnTest())
         console.log(await pluginIncentive.connect(user1).randomReturn())
 
-
-
-    })
-
-    
+        console.log(
+            await pluginERC20.connect(user1).balanceOf(user1.address)
+        )
+    })    
 })
+// msg.sender is that guy which connects

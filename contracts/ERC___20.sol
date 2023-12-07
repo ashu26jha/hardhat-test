@@ -10,7 +10,7 @@ contract Token is ERC20, Ownable {
         Ownable()
     {}
 
-    function mint(address to, uint256 amount) public onlyOwner {
+    function mint(address to, uint256 amount) public  {
         _mint(to, amount);
     }
 
