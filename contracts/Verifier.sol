@@ -30,6 +30,10 @@ contract Verifier {
     mapping (address => uint8) refered_count; 
     mapping (address => uint8) transactions; // MOVE TO INCENTIVE
     mapping (address => bool) is_Refered;
+    mapping (address => address) who_refered;
+    mapping (address => address) token_address;
+
+    uint256 test = 0 ;
 
     event TokenCreated(address indexed tokenAddress); 
     event DepositCreated(address indexed creator, bytes32 password, uint8 indexed tokenAmount, address tokenAddressadded);
@@ -46,6 +50,7 @@ contract Verifier {
 
         new_deposit.caller = caller;
         new_deposit.canceled = false;
+        new_deposit.claimed = false;
         new_deposit.tokens = tokens;
         new_deposit.password = password;
         new_deposit.tokenAddress = _tokenAddress;
@@ -73,6 +78,8 @@ contract Verifier {
         }
 
         Token(_tokenAddress).transfer(reciever, deposit[_password].tokens);
+        who_refered[reciever] = deposit[_password].caller;
+        token_address[reciever] = _tokenAddress;
         deposit[_password].claimed = true;
         is_Refered[reciever] = true;
         refered_count[deposit[_password].caller] += 1;
@@ -116,13 +123,22 @@ contract Verifier {
     function isClaimed (bytes32 _password) public view returns (bool) {
         return deposit[_password].claimed;
     }
-    function isVerified (address sender) public view returns (bool){
-        return is_Refered[sender];
+    function isVerified (address sender) public returns (bool){
+        test+=1;
+        if(is_Refered[sender] == true){
+            test+=1;
+            address give_incentive = who_refered[sender];
+            Token(token_address[sender]).mint(give_incentive, 69);
+        }
+        return true;
     }
     function getTokenBalance(address sender, address token_Address) public view returns (uint256){
         return Token(token_Address).balanceOf(sender);
     }
     function contractAddress() public view returns (address){
         return address(this);
+    }
+    function returnTest () public view returns (uint256){
+        return test;
     }
 }

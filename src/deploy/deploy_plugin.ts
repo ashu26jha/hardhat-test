@@ -32,12 +32,12 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     //     deterministicDeployment: true,
     // });
 
-    // await deploy("Incentive", {
-    //     from: deployer,
-    //     args: [],
-    //     log: true,
-    //     deterministicDeployment: true,
-    // });
+    await deploy("Incentive", {
+        from: deployer,
+        args: [],
+        log: true,
+        deterministicDeployment: true,
+    });
 
     await deploy("Verifier", {
         from: deployer,

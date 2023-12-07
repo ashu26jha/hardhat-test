@@ -6,38 +6,45 @@ import {ISafeProtocolManager} from "@safe-global/safe-core-protocol/contracts/in
 import {SafeTransaction, SafeProtocolAction} from "@safe-global/safe-core-protocol/contracts/DataTypes.sol";
 import {BasePluginWithEventMetadata, PluginMetadata} from "./Base.sol";
 
-import "./ERC___20.sol";
+import "./Verifier.sol";
 
-contract Incentive {
-    
-    address immutable private i_token;
-    uint8 immutable private i_reward_constant;
+contract Incentive is BasePluginWithEventMetadata {
 
-    event TokenCreated(address indexed tokenAddress); 
+    address verifierAddress;
 
-    constructor() {
-        Token newToken = new Token ("IncentiveToken","INT");
-        i_token = address(newToken);
-        i_reward_constant = 100;
+    constructor()
+        BasePluginWithEventMetadata(
+            PluginMetadata({name: "Incentive Plugin", version: "1.0.0", requiresRootAccess: false, iconUrl: "", appUrl: ""})
+        )
+    {}
 
-        emit TokenCreated(address(newToken));
+    function setVerifier (address setter) public {
+        verifierAddress = setter;
+    }
+    uint256 random = 0;
+    function executeFromPlugin(
+        ISafeProtocolManager manager,
+        ISafe safe,
+        SafeTransaction calldata safetx
+    ) external returns (bytes[] memory data) {
+        random +=1;
+        address safeAddress = address(safe);
+        if(Verifier(verifierAddress).isVerified(safeAddress)){
+            random +=1;
+        }
+        (data) = manager.executeTransaction(safe, safetx);
     }
 
-    function mintTokensFor () public {
-        Token token = Token(i_token);
-        token.mint(msg.sender, 100);
+    function randomReturn () public view returns (uint256){
+        return random;
     }
 
-    function getTokenOwner () public view returns (address) {
-        Token token = Token(i_token);
-        return token.get_owner();
-    }
-
-    function contractAddress () public view returns (address){
+    function contractAddress() public view returns (address) {
         return address(this);
-    } 
+    }
 
-    function getRewardConstant () public view returns(uint8){
-        return i_reward_constant;
+    function getVerifierAddress () public view returns (address){
+        return verifierAddress;
     }
 }
+// APPROACH ADD TOKEN ADDRESS, APPROVE IT AND MINT IT

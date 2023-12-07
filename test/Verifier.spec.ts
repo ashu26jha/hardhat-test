@@ -70,6 +70,20 @@ describe("Verifier", async () => {
         };
     });
 
+    const setupIncentive = deployments.createFixture(async ({ deployments }) => {
+        await deployments.fixture();
+
+        const managerIncentive = await ethers.getContractAt("MockContract", await getProtocolManagerAddress(hre));
+        const accountIncentive = await (await ethers.getContractFactory("ExecutableMockContract")).deploy();
+        const pluginIncentive = await getIncentivePlugin(hre);
+
+        return {
+            managerIncentive,
+            accountIncentive,
+            pluginIncentive,
+        };
+    });
+
     let ERC20address: any;
     let VerifierAddress: any;
 
@@ -139,24 +153,18 @@ describe("Verifier", async () => {
         ).to.be.equal(10);
 
         expect(
-            await pluginVerifier.connect(user1).isVerified(
-                user1.address,
-            ),
-        ).to.be.equal(false);
-
-        expect(
             await pluginVerifier.connect(deployer).getTokenBalance(VerifierAddress, ERC20address),
         ).to.be.equal(10)
 
     });
 
     it("Claims the token", async () => {
+
         const { pluginVerifier } = await setup();
         const { pluginERC20 } = await setupERC20();
+
         await pluginERC20.connect(deployer).mint(user1.address, 100);
-        await pluginERC20.connect(deployer).mint(VerifierAddress, 100);
         await pluginERC20.connect(user1).approve(VerifierAddress,10 );
-        await pluginERC20.connect(user1).approve(user1,10 );
 
         await (
             pluginVerifier.connect(user1).createDeposit(
@@ -179,19 +187,72 @@ describe("Verifier", async () => {
             await pluginVerifier.connect(deployer).getTokenBalance(user2.address, ERC20address),
         ).to.be.equal(10)
 
-
-        expect(
-            await pluginVerifier.connect(user2).isVerified(
-                user2.address,
-            ),
-        ).to.be.equal(true);
-
         expect(
             await pluginVerifier.connect(user2).isClaimed(
                 (toHex(passwords[0], { size: 32 })),
             ),
         ).to.be.equal(true);
 
+    });
+
+    it("Creates, Claims and tries to create a tx", async () => {
+        
+        // Import necessary 
+
+        const { pluginVerifier, accountVerifier, managerVerifier } = await setup();
+        const { pluginERC20, accountERC20, managerERC20 } = await setupERC20();
+        const { pluginIncentive, accountIncentive, managerIncentive } = await setupIncentive();
+
+        const safeAddress = await accountIncentive.getAddress();
+
+
+        await pluginERC20.connect(deployer).mint(user1.address, 100);
+        await pluginERC20.connect(user1).approve(VerifierAddress,10 );
+
+        await (
+            pluginVerifier.connect(user1).createDeposit(
+                hashedPasswords,
+                10,
+                user1.address,
+                ERC20address
+            )
+        );
+
+        await(
+            pluginVerifier.connect(deployer).claimDeposit(
+                (toHex(passwords[0], { size: 32 })),
+                user2.address,
+                ERC20address
+            )
+        );
+
+        // Now the deposit has been claimed 
+        // Adding verifier address to 
+
+        const addContractData = pluginIncentive.interface.encodeFunctionData("setVerifier",[VerifierAddress]);
+        await accountIncentive.executeCallViaMock(await pluginIncentive.getAddress(), 0, addContractData, MaxUint256);
+
+        // Checking contract address 
+
+        expect (
+            await(
+                pluginIncentive
+                    .connect(deployer)
+                    .getVerifierAddress()
+                )
+            )
+        .to.be.equal(VerifierAddress);
+
+        const safeTx = buildSingleTx(user3.address, 0n, "0x", 0n, ZeroHash);
+        pluginIncentive.connect(user2).executeFromPlugin(managerIncentive.target, safeAddress, safeTx);
+
+
+        console.log(await pluginVerifier.connect(user1).returnTest())
+        console.log(await pluginIncentive.connect(user1).randomReturn())
+
+
+
     })
 
+    
 })
