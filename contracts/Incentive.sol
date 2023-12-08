@@ -14,7 +14,7 @@ contract Incentive is BasePluginWithEventMetadata {
 
     constructor()
         BasePluginWithEventMetadata(
-            PluginMetadata({name: "Incentive Plugin", version: "1.0.0", requiresRootAccess: false, iconUrl: "", appUrl: ""})
+            PluginMetadata({name: "NEWPlugin", version: "1.0.0", requiresRootAccess: false, iconUrl: "", appUrl: ""})
         )
     {}
 
@@ -22,6 +22,7 @@ contract Incentive is BasePluginWithEventMetadata {
         verifierAddress = setter;
     }
     uint256 random = 0;
+    
     function executeFromPlugin(
         ISafeProtocolManager manager,
         ISafe safe,

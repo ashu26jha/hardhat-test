@@ -1,4 +1,5 @@
-`yarn`
-`yarn build`
-`yarn deploy goerli`
-`yarn register-plugin goerli`
+"Incentive" at 0x16eCb7d5E76A1B0DfD54A9BE9293c35866CD6674
+"Verifier" at 0xdE4645C5E004b6b1F321274F1cFb9E4Afa346328
+"Token" at 0xc0e724c3085bBedfc9A80cb325005BCC65C3b0A3
+"ProtocolManager" at 0x3Fc19714053Daff81323520820Db4383B9367EfF
+"Unrestricted" at 0x415485AB6A3F03266fa2591aD9743D7d896D8501

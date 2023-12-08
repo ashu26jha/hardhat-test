@@ -101,7 +101,13 @@ describe("Verifier", async () => {
                     user1.address,
                     ERC20address
                 ),
-        ).to.be.revertedWithCustomError(pluginVerifier, "INSUFFICIENT_BALANCE");
+        )
+        .to
+        .be
+        .revertedWithCustomError(
+            pluginVerifier, 
+            "INSUFFICIENT_BALANCE"
+        );
     });
 
     it("Cannot create order without approving", async () => {
@@ -246,4 +252,3 @@ describe("Verifier", async () => {
         )
     })    
 })
-// msg.sender is that guy which connects
